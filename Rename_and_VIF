@@ -1,0 +1,30 @@
+def Rename(Data):
+    Names = pd.read_csv(open('E:\\Users\\Kyle\\Downloads\\Names.csv'))
+    Names.drop(Names.columns[[2, 3, 4, 5]], axis=1,inplace=True)
+    Names.iloc[:,0] = Names.iloc[:,0].str.upper()
+    Bad_Names = Data.columns.values.tolist()
+    Bad_Names= pd.Series( (v for v in Bad_Names) )
+    Bad_Names = Bad_Names.str.upper()
+    for i in range(0,len(Bad_Names)-1):
+        Bad_Names[i]=Names[Names.iloc[:,0].str.contains(Bad_Names[i])==True].iloc[0,1]
+    return(Bad_Names)
+Good_Names = Rename(X)
+
+
+
+
+
+
+def VIFfunction(Params):
+    VIF = list()
+    Names = Params.columns.values.tolist()
+    Names = pd.Series((a for a in Names))
+    for i in range(0,len(Params.T)):
+        Y =  Params.iloc[:,i]
+        X =  Params.drop(Params.columns[[i]],axis=1)
+        results= sm.OLS(Y, X).fit() 
+        VIF.append(1/(1-results.rsquared))
+    VIF = pd.Series((b for b in VIF))
+    Final = pd.concat([Names,VIF],axis=1,ignore_index= True)
+    return(Final)
+VIFfunction(Variables)

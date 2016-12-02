@@ -1,0 +1,115 @@
+from pandas import DataFrame, read_csv
+import pandas as pd
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+# select different feature size and run cross validation
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_classif
+from itertools import cycle
+
+from sklearn.ensemble import BaggingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import BaggingRegressor
+from sklearn.tree import DecisionTreeRegressor
+    
+from sklearn import svm, datasets
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import label_binarize
+from sklearn.multiclass import OneVsRestClassifier
+from scipy import interp
+
+k_list = [10, 20, 40, 80, 160, 320, 640]
+score_list = []
+
+k_list = [40]
+for k_element in k_list:
+    # read data and standardize
+    train_data = pd.read_csv("training_data.csv")
+    train_data_2 = train_data.iloc[:,1:]
+
+    fico_score = pd.read_csv("C:/Users/Y/UCLA/AFP/data/fico_score.csv")    
+    
+    X = train_data_2.iloc[:, :-1]
+    Y = train_data_2.iloc[:, -1]
+    X = preprocessing.scale(X)
+    # selece feature based on f_classif
+    X_new = SelectKBest(f_classif, k=k_element)
+    X_new.fit_transform(X, Y)
+    X = X[:, X_new.get_support()]
+    c = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
+    logreg = LogisticRegressionCV(penalty='l2', solver='sag', Cs=c, refit=True, cv=10, max_iter=100)
+    logreg.fit(X, Y)
+    score_list.append(logreg.score(X, Y))
+   # print(score_list[-1])    
+
+    print("The accuracy rate in training set is ", logreg.score(X, Y))
+    
+
+    bagging = BaggingClassifier(KNeighborsClassifier(),
+                                max_samples=0.5, max_features=0.5)
+
+
+    estimators = [("Tree", DecisionTreeRegressor()),
+                  ("Bagging(Tree)", BaggingRegressor(DecisionTreeRegressor()))]
+                  
+    bagging_2 = BaggingRegressor(DecisionTreeRegressor())                                   
+
+    
+    Bagreg = bagging.fit(X, Y)
+    Bagreg.score(X, Y)
+    print("The accuracy rate in training set is ", Bagreg.score(X, Y))
+    
+    Bagreg_2 = bagging_2.fit(X, Y)
+    Bagreg_2.score(X, Y)
+    print("The accuracy rate in training set is ", Bagreg_2.score(X, Y))
+
+   
+    
+    # test PCA at testing dataset
+    test_data = pd.read_csv("testing_data.csv")
+    test_data_2 = test_data.iloc[:,1:]
+
+    X_test = test_data_2.iloc[:, :-1]
+    Y_test = test_data_2.iloc[:, -1]
+    X_test = preprocessing.scale(X_test)
+    X_test = X_test[:, X_new.get_support()]
+    
+    y_predict_1 = logreg.predict(X_test)
+    y_predict_2 = Bagreg.predict(X_test)
+    y_predict_3 = Bagreg_2.predict(X_test)
+
+    
+    print("The AUC score is ", roc_auc_score(Y_test, y_predict_1))
+    print("The AUC score is ", roc_auc_score(Y_test, y_predict_2))
+    print("The AUC score is ", roc_auc_score(Y_test, y_predict_3))
+
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    
+    
+    fpr[0], tpr[0], _ = roc_curve(Y_test, y_predict_1)
+    fpr[1], tpr[1], _ = roc_curve(Y_test, y_predict_2)
+    fpr[2], tpr[2], _ = roc_curve(Y_test, y_predict_3)
+
+    
+    roc_auc[0] = auc(fpr[0], tpr[0])
+    roc_auc[1] = auc(fpr[1], tpr[1])
+    roc_auc[2] = auc(fpr[2], tpr[2])
+    
+
+    plt.figure(1)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.plot(fpr[0], tpr[0], label='Logistic Regression')
+    plt.plot(fpr[1], tpr[1], label='Ensemble methods-Bagging KNN')
+    plt.plot(fpr[2], tpr[2], label='Ensemble methods-Bagging Tree')
+
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.title('ROC curve')
+    plt.legend(loc='best')
+    plt.show()
